@@ -1,0 +1,7 @@
+.idea
+venv
+*.pdf
+data
+__pycache__
+*.npy
+*.png
