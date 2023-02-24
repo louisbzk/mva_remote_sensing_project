@@ -14,8 +14,8 @@ from utils import init_weights, save_model, save_checkpoint, load_train_data
 from torch.utils.data import DataLoader
 
 # todo : change paths
-basedir = '/home/dalsasso/Desktop/navette_emanuele/projets/SARCNN/SARCNN_with_test'
-datasetdir = '/home/dalsasso/Nextcloud/Shared/ENL'
+basedir = '/home/alderson/Desktop/MVA/Remote Sensing/Project'
+datasetdir = basedir + '/data'
 
 torch.manual_seed(1)
 
@@ -33,15 +33,16 @@ parser.add_argument('--weight_decay', dest='weight_decay', type=float, default=0
 
 parser.add_argument('--use_gpu', dest='use_gpu', type=int, default=1, help='gpu flag, 1 for GPU and 0 for CPU')
 parser.add_argument('--phase', dest='phase', default='train', help='train or test')
-parser.add_argument('--checkpoint_dir', dest='ckpt_dir', default=basedir+'/saved_model',
+parser.add_argument('--checkpoint_dir', dest='ckpt_dir', default=basedir + '/checkpoint',
                     help='models are saved here')
-parser.add_argument('--sample_dir', dest='sample_dir', default=basedir+'/sample', help='sample are saved here')
-parser.add_argument('--test_dir', dest='test_dir', default=basedir+'/test', help='test sample are saved here')
+parser.add_argument('--sample_dir', dest='sample_dir', default=datasetdir + '/sample', help='sample are saved here')
+parser.add_argument('--test_dir', dest='test_dir', default=datasetdir + '/test', help='test sample are saved here')
 parser.add_argument('--eval_set', dest='eval_set', default=datasetdir +
-                    '/Test/256x256/clean/', help='dataset for eval in training')
+                    '/val/gt/npy', help='dataset for eval in training')
 parser.add_argument('--test_set', dest='test_set', default=datasetdir +
-                    '/Test/256x256/clean/', help='dataset for testing')
-parser.add_argument('--training_set', dest='training_set', default=datasetdir+'/Training/', help='dataset for training')
+                    '/test/gt/npy', help='dataset for testing')
+parser.add_argument('--training_set', dest='training_set', default=datasetdir + '/train/gt/npy',
+                    help='dataset for training')
 parser.add_argument('--device', dest='device',
                     default=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), help='gpu or cpu')
 
@@ -50,7 +51,8 @@ args = parser.parse_args()
 torch.autograd.set_detect_anomaly(True)
 
 
-def fit(model, train_loader, val_loader, epochs, lr_list, gn_list, eval_files, eval_set, checkpoint_folder, n_checkpoint=1):
+def fit(model, train_loader, val_loader, epochs, lr_list, gn_list,
+        eval_files, eval_set, checkpoint_folder, n_checkpoint=1):
     """ Fit the model according to the given evaluation data and parameters.
 
     Parameters
@@ -93,7 +95,7 @@ def fit(model, train_loader, val_loader, epochs, lr_list, gn_list, eval_files, e
     with torch.no_grad():
         image_num = 0
         for batch in val_loader:
-            val_loss = model.validation_step(batch, image_num, epoch_num, eval_files, eval_set, args.sample_dir)
+            val_loss = model.validation_step(batch, image_num, epoch_num, eval_files, eval_set)
             image_num = image_num+1
 
     start_time = time.time()
@@ -110,20 +112,11 @@ def fit(model, train_loader, val_loader, epochs, lr_list, gn_list, eval_files, e
             running_loss = 0.0
 
             optimizer.zero_grad()
-            loss = model.training_step(batch, i)
+            loss = model.training_step(batch)
             train_losses.append(loss)
 
             loss.backward()
-
-            total_norm = 0
-            for p in model.parameters():
-                param_norm = p.grad.detach().data.norm(2)
-                total_norm += param_norm.item() ** 2
-            total_norm = total_norm ** 0.5
-            print(total_norm)
-
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=gn_list[epoch])
-
             optimizer.step()
 
             # running_loss += loss.item()     # extract the loss value
@@ -136,7 +129,7 @@ def fit(model, train_loader, val_loader, epochs, lr_list, gn_list, eval_files, e
             with torch.no_grad():
                 image_num = 0
                 for batch in val_loader:
-                    model.validation_step(batch, image_num, epoch_num, eval_files, eval_set, args.sample_dir)
+                    model.validation_step(batch, image_num, epoch_num, eval_files, eval_set)
                     image_num = image_num+1
 
         # print('For epoch', epoch+1,'the last validation loss is :',val_losses)
@@ -164,7 +157,7 @@ def denoiser_train(model, lr_list, gn_list):
     # Prepare train DataLoader
     train_data = load_train_data(args.training_set, args.patch_size, args.batch_size,
                                  args.stride_size, args.n_data_augmentation)  # range [0; 1]
-    print(train_data.shape)
+    print(f'train_data.shape : {train_data.shape}')
     train_dataset = CustomDataset(train_data)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
@@ -173,7 +166,7 @@ def denoiser_train(model, lr_list, gn_list):
     eval_dataset = ValDataset(args.test_set)  # range [0; 1]
     eval_loader = DataLoader(
         eval_dataset, batch_size=args.val_batch_size, shuffle=False, drop_last=True)
-    eval_files = glob(args.eval_set+'*.npy')
+    eval_files = glob(os.path.join(args.eval_set, '*.npy'))
 
     # Train the model
     history = fit(model, train_loader, eval_loader, args.epoch, lr_list,
@@ -200,7 +193,7 @@ def denoiser_test(model):
     test_dataset = ValDataset(args.test_set)  # range [0; 1]
     test_loader = DataLoader(
         test_dataset, batch_size=args.val_batch_size, shuffle=False, drop_last=True)
-    test_files = glob(args.test_set+'*.npy')
+    test_files = glob(os.path.join(args.test_set, '*.npy'))
 
     val_losses = []
     ckpt_files = glob(args.ckpt_dir+'/checkpoint_*')
@@ -231,6 +224,15 @@ def main():
         os.makedirs(args.sample_dir)
     if not os.path.exists(args.test_dir):
         os.makedirs(args.test_dir)
+
+    # prepare directories to save images generated during training
+    n_run_directories = len(glob(os.path.join(args.sample_dir, '*')))
+    while os.path.isdir(os.path.join(args.sample_dir, f'run_{n_run_directories}')):
+        n_run_directories += 1
+    os.makedirs(os.path.join(args.sample_dir, f'run_{n_run_directories}'))
+    os.makedirs(os.path.join(args.sample_dir, f'run_{n_run_directories}', 'val'))
+    os.makedirs(os.path.join(args.sample_dir, f'run_{n_run_directories}', 'test'))
+
     # learning rate list
     lr = args.lr * np.ones([args.epoch])
     lr[10:20] = lr[0]/10
@@ -238,7 +240,9 @@ def main():
     # gradient norm list
     gn = 5.0*np.ones([args.epoch])  # not used here
 
-    model = AE(args.batch_size, args.val_batch_size, args.device)
+    model = AE(args.batch_size, args.val_batch_size, args.device,
+               save_val_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'val'),
+               save_test_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'test'))
     model.to(args.device)
 
     if args.phase == 'train':

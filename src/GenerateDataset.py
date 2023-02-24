@@ -13,7 +13,7 @@ The code scans among the training images and then for data_aug_times
 
 class GenerateDataset:
     @staticmethod  # TODO : change paths
-    def generate_patches(src_dir='./dataset/data/Train', pat_size=256, step=0, stride=64, bat_size=4, data_aug_times=1, n_channels=1):
+    def generate_patches(src_dir='data/train/raw/npy', pat_size=256, step=0, stride=64, bat_size=4, data_aug_times=1, n_channels=1):
         count = 0
         filepaths = glob.glob(src_dir + '/*.npy')
         print('number of training data %d' % len(filepaths))

@@ -95,16 +95,16 @@ def save_sar_images(denoised, noisy, imagename, save_dir, noisy_bool=True, groun
         threshold = np.mean(noisy) + 3 * np.std(noisy)
 
     if groundtruth:
-        groundtruthfilename = save_dir+'/groundtruth_'+imagename
+        groundtruthfilename = os.path.join(save_dir, 'groundtruth_' + imagename)
         np.save(groundtruthfilename, groundtruth)
         store_data_and_plot(groundtruth, threshold, groundtruthfilename)
 
-    denoisedfilename = save_dir + '/denoised_' + imagename
+    denoisedfilename = os.path.join(save_dir, 'denoised_' + imagename)
     np.save(denoisedfilename, denoised)
     store_data_and_plot(denoised, threshold, denoisedfilename)
 
     if noisy_bool:
-        noisyfilename = save_dir + '/noisy_' + imagename
+        noisyfilename = os.path.join(save_dir, 'noisy_' + imagename)
         np.save(noisyfilename, noisy)
         store_data_and_plot(noisy, threshold, noisyfilename)
 
@@ -121,11 +121,11 @@ def save_real_imag_images(real_part, imag_part, imagename, save_dir):
     if threshold is None:
         threshold = np.mean(imag_part) + 3 * np.std(imag_part)
 
-    realfilename = save_dir + '/denoised_real_' + imagename
+    realfilename = os.path.join(save_dir, '/denoised_real_', imagename)
     np.save(realfilename, real_part)
     store_data_and_plot(real_part, threshold, realfilename)
 
-    imagfilename = save_dir + '/denoised_imag_' + imagename
+    imagfilename = os.path.join(save_dir, '/denoised_imag_', imagename)
     np.save(imagfilename, imag_part)
     store_data_and_plot(imag_part, threshold, imagfilename)
 

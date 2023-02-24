@@ -18,7 +18,7 @@ cn = c / (M - m)  # normalized (0,1) mean of log speckle
 
 
 class AE(torch.nn.Module):
-    def __init__(self, batch_size, eval_batch_size, device):
+    def __init__(self, batch_size, eval_batch_size, device, save_val_dir, save_test_dir):
         super().__init__()
 
         self.batch_size = batch_size
@@ -38,6 +38,9 @@ class AE(torch.nn.Module):
         self.alpha = None
         self.pool = torch.nn.MaxPool2d(kernel_size=2, stride=2)
         self.leaky = torch.nn.LeakyReLU(0.1)
+
+        self.save_val_dir = save_val_dir
+        self.save_test_dir = save_test_dir
 
         self.enc0 = torch.nn.Conv2d(in_channels=1, out_channels=48, kernel_size=(3, 3), stride=(1, 1),
                                     padding='same')
@@ -79,7 +82,7 @@ class AE(torch.nn.Module):
 
         self.upscale2d = torch.nn.UpsamplingNearest2d(scale_factor=2)
 
-    def forward(self, x, batch_size):
+    def forward(self, x):
         """  Defines a class for an autoencoder algorithm for an object (image) x
 
         An autoencoder is a specific type of feedforward neural networks where the
@@ -159,14 +162,13 @@ class AE(torch.nn.Module):
         return x - n
 
     @staticmethod
-    def loss_function(output, target, batch_size):
+    def loss_function(output, target):
         """ Defines and runs the loss function
 
         Parameters
         ----------
         output :
         target :
-        batch_size :
 
         Returns
         ----------
@@ -190,13 +192,12 @@ class AE(torch.nn.Module):
         log_norm_s = s_log / (M-m)
         return x+log_norm_s
 
-    def training_step(self, batch, batch_number):
+    def training_step(self, batch):
         """ Train the model with the training set
 
         Parameters
         ----------
         batch : a subset of the training date
-        batch_number : ID identifying the batch
 
         Returns
         -------
@@ -214,12 +215,12 @@ class AE(torch.nn.Module):
         x = x.to(self.device)
         y1 = y1.to(self.device)
 
-        out = self.forward(y1, self.batch_size)
-        loss = self.loss_function(out, x, self.batch_size)
+        out = self.forward(y1)
+        loss = self.loss_function(out, x)
 
         return loss
 
-    def validation_step(self, batch, image_num, epoch_num, eval_files, eval_set, sample_dir):
+    def validation_step(self, batch, image_num, epoch_num, eval_files, eval_set):
         """ Test the model with the validation set
 
         Parameters
@@ -242,7 +243,7 @@ class AE(torch.nn.Module):
 
         y = self.generate_speckle(x, L)
         y = y.to(self.device)
-        out = self.forward(y, self.eval_batch_size)
+        out = self.forward(y)
 
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -255,21 +256,18 @@ class AE(torch.nn.Module):
         print('img%d PSNR: %.2f' % (image_num, psnr))
 
         # rename and save
-        imagename = eval_files[image_num].replace(eval_set, '')
+        imagename = eval_files[image_num].split('/')[-1]
         imagename = imagename.replace('.npy', '_L' + str(L) + '_epoch_' + str(epoch_num) + '.npy')
 
-        save_sar_images(outputimage, noisyimage, imagename, sample_dir)
+        save_sar_images(outputimage, noisyimage, imagename, self.save_val_dir)
 
     def test_step(self, im, image_num, test_files, test_set, test_dir):
-
         pat_size = 256
-
         stride = 64
 
         # Pad the image
         # im on gpu ie tensor
         # dimension == [1,1,h,w,1]
-        im_h_start, im_w_start = im.size(dim=1), im.size(dim=2)
 
         L = 1
         im_gt = denormalize_sar(np.squeeze(np.asarray(im.cpu().numpy())))
@@ -300,7 +298,7 @@ class AE(torch.nn.Module):
                 patch_test = im[:, x:x + pat_size, y:y + pat_size, :]
                 patch_test = patch_test.to(self.device)
 
-                tmp = self.forward(patch_test, self.eval_batch_size)
+                tmp = self.forward(patch_test)
                 tmp = denormalize_sar(np.asarray(tmp.cpu().numpy()))
 
                 out[x:x + pat_size, y:y + pat_size] = out[x:x + pat_size, y:y + pat_size] + tmp
@@ -311,10 +309,10 @@ class AE(torch.nn.Module):
         out = out/count_image
         # out is de-normalized
 
-        imagename = test_files[image_num].replace(test_set, '')
+        imagename = test_files[image_num].split('/')[-1]
 
         psnr = cal_psnr(out, im_gt)
         print('img%d PSNR: %.2f' % (image_num, psnr))
 
         save_sar_images(out, denormalize_sar(np.squeeze(np.asarray(im.cpu().numpy()))),
-                        imagename, test_dir, noisy_bool=False)
+                        imagename, self.save_test_dir, noisy_bool=False)
