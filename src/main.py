@@ -47,6 +47,8 @@ parser.add_argument('--device', dest='device',
                     default=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), help='gpu or cpu')
 parser.add_argument('--line_detection_path', help='Path to directory containing line detector images. The filenames '
                                                   'must match exactly between the raw images and the lines images.')
+parser.add_argument('--loss', help='loss function to use. supported : \'l2\', \'l1\', \'ms-ssim\', \'ms-ssim-l1\'',
+                    default='l2')
 
 args = parser.parse_args()
 
@@ -246,7 +248,8 @@ def main():
 
     model = AE(in_channels, args.batch_size, args.val_batch_size, args.device,
                save_val_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'val'),
-               save_test_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'test'))
+               save_test_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'test'),
+               loss=args.loss)
     model.to(args.device)
 
     if args.phase == 'train':

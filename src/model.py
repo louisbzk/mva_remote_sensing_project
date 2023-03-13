@@ -7,6 +7,7 @@ import os
 from utils import *
 from scipy import special
 import argparse
+from loss import L1Loss, L2Loss, MsSSIMLoss, MsSSIML1Loss
 
 
 # DEFINE PARAMETERS OF SPECKLE AND NORMALIZATION FACTOR
@@ -18,7 +19,7 @@ cn = c / (M - m)  # normalized (0,1) mean of log speckle
 
 
 class AE(torch.nn.Module):
-    def __init__(self, in_channels, batch_size, eval_batch_size, device, save_val_dir, save_test_dir):
+    def __init__(self, in_channels, batch_size, eval_batch_size, device, save_val_dir, save_test_dir, loss):
         super().__init__()
 
         self.batch_size = batch_size
@@ -41,6 +42,7 @@ class AE(torch.nn.Module):
 
         self.save_val_dir = save_val_dir
         self.save_test_dir = save_test_dir
+        self.loss = self._create_loss(loss.lower())
 
         self.enc0 = torch.nn.Conv2d(in_channels=in_channels, out_channels=48, kernel_size=(3, 3), stride=(1, 1),
                                     padding='same')
@@ -81,6 +83,17 @@ class AE(torch.nn.Module):
                                     padding='same')
 
         self.upscale2d = torch.nn.UpsamplingNearest2d(scale_factor=2)
+
+    @staticmethod
+    def _create_loss(loss) -> torch.nn.Module:
+        if loss == 'l2':
+            return L2Loss()
+        if loss == 'l1':
+            return L1Loss()
+        if loss == 'ms-ssim':
+            return MsSSIMLoss()
+        if loss == 'ms-ssim-l1':
+            return MsSSIML1Loss(alpha=0.8, k2=0.15)  # todo : maybe adjust this via args
 
     def forward(self, x):
         """  Defines a class for an autoencoder algorithm for an object (image) x
@@ -162,24 +175,6 @@ class AE(torch.nn.Module):
         return x - n
 
     @staticmethod
-    def loss_function(output, target):
-        """ Defines and runs the loss function
-
-        Parameters
-        ----------
-        output :
-        target :
-
-        Returns
-        ----------
-        loss: float
-            The value of loss given your output, target and batch_size
-
-        """
-        loss = torch.mean(torch.square(torch.abs(output-torch.permute(target, (0, 3, 1, 2)))))
-        return loss
-
-    @staticmethod
     def generate_speckle(x, L):
         M = 10.089038980848645
         m = -1.429329123112601
@@ -216,7 +211,7 @@ class AE(torch.nn.Module):
         y1 = y1.to(self.device)
 
         out = self.forward(y1)
-        loss = self.loss_function(out, x)
+        loss = self.loss(out, x)
 
         return loss
 
