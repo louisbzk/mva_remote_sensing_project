@@ -45,6 +45,8 @@ parser.add_argument('--training_set', dest='training_set', default=datasetdir + 
                     help='dataset for training')
 parser.add_argument('--device', dest='device',
                     default=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), help='gpu or cpu')
+parser.add_argument('--line_detection_path', help='Path to directory containing line detector images. The filenames '
+                                                  'must match exactly between the raw images and the lines images.')
 
 args = parser.parse_args()
 
@@ -156,7 +158,7 @@ def denoiser_train(model, lr_list, gn_list):
     """
     # Prepare train DataLoader
     train_data = load_train_data(args.training_set, args.patch_size, args.batch_size,
-                                 args.stride_size, args.n_data_augmentation)  # range [0; 1]
+                                 args.stride_size, args.n_data_augmentation, args.line_detection_path)  # range [0; 1]
     print(f'train_data.shape : {train_data.shape}')
     train_dataset = CustomDataset(train_data)
 
@@ -240,7 +242,9 @@ def main():
     # gradient norm list
     gn = 5.0*np.ones([args.epoch])  # not used here
 
-    model = AE(args.batch_size, args.val_batch_size, args.device,
+    in_channels = 2 if args.line_detection_path else 1
+
+    model = AE(in_channels, args.batch_size, args.val_batch_size, args.device,
                save_val_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'val'),
                save_test_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'test'))
     model.to(args.device)

@@ -55,11 +55,15 @@ def denormalize_sar(im):
 
 
 # TODO: add control on training data: exit if does not exists
-def load_train_data(filepath, patch_size, batch_size, stride_size, n_data_augmentation):
+def load_train_data(filepath, patch_size, batch_size, stride_size, n_data_augmentation, line_detection_path):
     datagen = GenerateDataset()
-    imgs = datagen.generate_patches(src_dir=filepath, pat_size=patch_size, step=0,
-                                    stride=stride_size, bat_size=batch_size, data_aug_times=n_data_augmentation)
-    return normalize_sar(imgs)
+    n_channels = 2 if line_detection_path else 1
+    imgs = datagen.generate_patches(src_dir=filepath, lines_dir=line_detection_path, pat_size=patch_size, step=0,
+                                    stride=stride_size, bat_size=batch_size, data_aug_times=n_data_augmentation,
+                                    n_channels=n_channels)
+
+    imgs[:, :, :, 0] = normalize_sar(imgs[:, :, :, 0])
+    return imgs
 
 
 def load_sar_images(filelist):

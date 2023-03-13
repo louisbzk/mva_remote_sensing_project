@@ -18,7 +18,7 @@ cn = c / (M - m)  # normalized (0,1) mean of log speckle
 
 
 class AE(torch.nn.Module):
-    def __init__(self, batch_size, eval_batch_size, device, save_val_dir, save_test_dir):
+    def __init__(self, in_channels, batch_size, eval_batch_size, device, save_val_dir, save_test_dir):
         super().__init__()
 
         self.batch_size = batch_size
@@ -42,7 +42,7 @@ class AE(torch.nn.Module):
         self.save_val_dir = save_val_dir
         self.save_test_dir = save_test_dir
 
-        self.enc0 = torch.nn.Conv2d(in_channels=1, out_channels=48, kernel_size=(3, 3), stride=(1, 1),
+        self.enc0 = torch.nn.Conv2d(in_channels=in_channels, out_channels=48, kernel_size=(3, 3), stride=(1, 1),
                                     padding='same')
         self.enc1 = torch.nn.Conv2d(in_channels=48, out_channels=48, kernel_size=(3, 3), stride=(1, 1),
                                     padding='same')
@@ -208,7 +208,7 @@ class AE(torch.nn.Module):
         L = 1
 
         x = batch
-        y1 = self.generate_speckle(x, L)
+        y1 = self.generate_speckle(x[:, :, :, 0:], L)
         # y2 = self.generate_speckle(x,np.random.randint(20,30))
         # pile = np.concatenate((y1,y2),dim=3)
 

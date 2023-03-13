@@ -13,9 +13,33 @@ The code scans among the training images and then for data_aug_times
 
 class GenerateDataset:
     @staticmethod  # TODO : change paths
-    def generate_patches(src_dir='data/train/raw/npy', pat_size=256, step=0, stride=64, bat_size=4, data_aug_times=1, n_channels=1):
+    def generate_patches(src_dir='data/train/raw/npy',
+                         lines_dir=None,
+                         pat_size=256,
+                         step=0,
+                         stride=64,
+                         bat_size=4,
+                         data_aug_times=1,
+                         n_channels=1
+                         ):
         count = 0
         filepaths = glob.glob(src_dir + '/*.npy')
+        if lines_dir:
+            lines_filepaths = glob.glob(os.path.join(lines_dir, '/*.npy'))
+            # check one-to-one mapping
+            if len(filepaths) != len(lines_filepaths):
+                raise ValueError(f'Wrong number of line detection images : {len(lines_filepaths)} were found, but '
+                                 f'there are {len(filepaths)} training images')
+            for i, path in enumerate(filepaths):
+                try:
+                    line_idx = lines_filepaths.index(path)
+                except ValueError:
+                    raise ValueError(f'Could not find line image that matches the following image : \'{path}\' in '
+                                     f'directory \'{lines_dir}\'')
+                if i != line_idx:  # move element in list, so that indices match between the two lists
+                    line_path = lines_filepaths.pop(line_idx)
+                    lines_filepaths.insert(i, line_path)
+
         print('number of training data %d' % len(filepaths))
 
         # calculate the number of patches
@@ -48,9 +72,18 @@ class GenerateDataset:
             im_h = np.size(img, 0)
             im_w = np.size(img, 1)
 
+            if lines_dir:
+                line_img = np.load(lines_filepaths[i])
+                line_im_h, line_im_w = line_img.shape
+                if line_im_h != im_h or line_im_w != im_w:
+                    raise ValueError(f'For image \'{filepaths[i]}\', corresponding line image \'{lines_filepaths[i]}\' '
+                                     f'size does not match : {(im_h, im_w)} versus {line_img.shape}')
+
             for x in range(0 + step, im_h - pat_size, stride):
                 for y in range(0 + step, im_w - pat_size, stride):
-                    inputs[count, :, :, :] = img_s[x:x + pat_size, y:y + pat_size, :]
+                    inputs[count, :, :, 0] = img_s[x:x + pat_size, y:y + pat_size, 0]
+                    if lines_dir:
+                        inputs[count, :, :, 1] = line_img[x:x + pat_size, y:y + pat_size, 0]
 
                     count += 1
 
