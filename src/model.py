@@ -75,7 +75,7 @@ class AE(torch.nn.Module):
                                     padding='same')
         self.dec2b = torch.nn.Conv2d(in_channels=96, out_channels=96, kernel_size=(3, 3), stride=(1, 1),
                                      padding='same')
-        self.dec1a = torch.nn.Conv2d(in_channels=97, out_channels=64, kernel_size=(3, 3), stride=(1, 1),
+        self.dec1a = torch.nn.Conv2d(in_channels=96 + in_channels, out_channels=64, kernel_size=(3, 3), stride=(1, 1),
                                      padding='same')
         self.dec1b = torch.nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(3, 3), stride=(1, 1),
                                      padding='same')
@@ -203,7 +203,11 @@ class AE(torch.nn.Module):
         L = 1
 
         x = batch
-        y1 = self.generate_speckle(x[:, :, :, 0:], L)
+        if x.shape[-1] > 1:
+            y1 = self.generate_speckle(x[:, :, :, :-1], L)
+            y1 = torch.cat((y1, x[:, :, :, -1:]), dim=-1)
+        else:
+            y1 = self.generate_speckle(x, L)
         # y2 = self.generate_speckle(x,np.random.randint(20,30))
         # pile = np.concatenate((y1,y2),dim=3)
 
@@ -236,15 +240,23 @@ class AE(torch.nn.Module):
 
         L = 1
 
-        y = self.generate_speckle(x, L)
-        y = y.to(self.device)
-        out = self.forward(y)
+        if x.shape[-1] > 1:
+            y1 = self.generate_speckle(x[:, :, :, :-1], L)
+            y1 = torch.cat((y1, x[:, :, :, -1:]), dim=-1).to(self.device)
+        else:
+            y1 = self.generate_speckle(x, L).to(self.device)
 
+        gt_tensor = x[:, :, :, :-1]
+        out = torch.permute(self.forward(y1), (0, 2, 3, 1))
+
+        # if the batch has line data, we need to separate the raw image & the line data
+        noisy_tensor = x[:, :, :, :-1]
+        denoised_tensor = out[:, :, :, :-1]
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-        noisyimage = denormalize_sar(np.asarray(y.cpu().numpy()))
-        outputimage = denormalize_sar(np.asarray(out.cpu().numpy()))
-        groundtruth = denormalize_sar(np.asarray(x.cpu().numpy()))
+        noisyimage = denormalize_sar(np.asarray(noisy_tensor.cpu().numpy()))
+        outputimage = denormalize_sar(np.asarray(denoised_tensor.cpu().numpy()))
+        groundtruth = denormalize_sar(np.asarray(gt_tensor.cpu().numpy()))
 
         # calculate PSNR
         psnr = cal_psnr(outputimage, groundtruth)

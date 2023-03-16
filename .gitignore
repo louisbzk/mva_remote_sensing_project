@@ -7,3 +7,7 @@ __pycache__
 *.png
 checkpoint*
 convert_to_npy.ipynb
+tmp
+runs.txt
+raw_lines
+tmp0

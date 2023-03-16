@@ -45,8 +45,12 @@ parser.add_argument('--training_set', dest='training_set', default=datasetdir + 
                     help='dataset for training')
 parser.add_argument('--device', dest='device',
                     default=torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'), help='gpu or cpu')
-parser.add_argument('--line_detection_path', help='Path to directory containing line detector images. The filenames '
-                                                  'must match exactly between the raw images and the lines images.')
+parser.add_argument('--train_line_detection_path',
+                    help='Path to directory containing line detector images of the training images. The filenames '
+                         'must match exactly between the raw images and the lines images.')
+parser.add_argument('--test_line_detection_path',
+                    help='Path to directory containing line detector images of the testing images. The filenames '
+                         'must match exactly between the raw images and the lines images.')
 parser.add_argument('--loss', help='loss function to use. supported : \'l2\', \'l1\', \'ms-ssim\', \'ms-ssim-l1\'',
                     default='l2')
 
@@ -160,14 +164,14 @@ def denoiser_train(model, lr_list, gn_list):
     """
     # Prepare train DataLoader
     train_data = load_train_data(args.training_set, args.patch_size, args.batch_size,
-                                 args.stride_size, args.n_data_augmentation, args.line_detection_path)  # range [0; 1]
+                                 args.stride_size, args.n_data_augmentation, args.train_line_detection_path)  # range [0; 1]
     print(f'train_data.shape : {train_data.shape}')
     train_dataset = CustomDataset(train_data)
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
 
     # Prepare Validation DataLoader
-    eval_dataset = ValDataset(args.test_set)  # range [0; 1]
+    eval_dataset = ValDataset(args.test_set, args.test_line_detection_path)  # range [0; 1]
     eval_loader = DataLoader(
         eval_dataset, batch_size=args.val_batch_size, shuffle=False, drop_last=True)
     eval_files = glob(os.path.join(args.eval_set, '*.npy'))
@@ -194,7 +198,7 @@ def denoiser_test(model):
 
     """
     # Prepare Validation DataLoader
-    test_dataset = ValDataset(args.test_set)  # range [0; 1]
+    test_dataset = ValDataset(args.test_set, args.test_line_detection_path)  # range [0; 1]
     test_loader = DataLoader(
         test_dataset, batch_size=args.val_batch_size, shuffle=False, drop_last=True)
     test_files = glob(os.path.join(args.test_set, '*.npy'))
@@ -244,7 +248,7 @@ def main():
     # gradient norm list
     gn = 5.0*np.ones([args.epoch])  # not used here
 
-    in_channels = 2 if args.line_detection_path else 1
+    in_channels = 2 if args.train_line_detection_path else 1
 
     model = AE(in_channels, args.batch_size, args.val_batch_size, args.device,
                save_val_dir=os.path.join(args.sample_dir, f'run_{n_run_directories}', 'val'),

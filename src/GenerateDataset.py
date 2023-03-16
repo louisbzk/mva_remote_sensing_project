@@ -4,6 +4,8 @@ import os
 import numpy as np
 from scipy import signal
 from scipy import special
+from pathlib import Path
+
 
 '''
 Generate patches for the images in the folder dataset/data/Train
@@ -25,14 +27,15 @@ class GenerateDataset:
         count = 0
         filepaths = glob.glob(src_dir + '/*.npy')
         if lines_dir:
-            lines_filepaths = glob.glob(os.path.join(lines_dir, '/*.npy'))
+            lines_filepaths = glob.glob(lines_dir + '/*.npy')
+            _lines_filenames = [Path(fp).stem for fp in lines_filepaths]
             # check one-to-one mapping
             if len(filepaths) != len(lines_filepaths):
                 raise ValueError(f'Wrong number of line detection images : {len(lines_filepaths)} were found, but '
                                  f'there are {len(filepaths)} training images')
             for i, path in enumerate(filepaths):
                 try:
-                    line_idx = lines_filepaths.index(path)
+                    line_idx = _lines_filenames.index(Path(path).stem)
                 except ValueError:
                     raise ValueError(f'Could not find line image that matches the following image : \'{path}\' in '
                                      f'directory \'{lines_dir}\'')
@@ -66,9 +69,13 @@ class GenerateDataset:
 
         count = 0
         # generate patches
+        if lines_dir:
+            _n_channels_raw_imgs = n_channels - 1
+        else:
+            _n_channels_raw_imgs = n_channels
         for i in range(len(filepaths)):  # scan through images
             img = (np.load(filepaths[i]))
-            img_s = img.reshape((img.shape[0], img.shape[1], n_channels))
+            img_s = img.reshape((img.shape[0], img.shape[1], _n_channels_raw_imgs))
             im_h = np.size(img, 0)
             im_w = np.size(img, 1)
 
@@ -83,7 +90,7 @@ class GenerateDataset:
                 for y in range(0 + step, im_w - pat_size, stride):
                     inputs[count, :, :, 0] = img_s[x:x + pat_size, y:y + pat_size, 0]
                     if lines_dir:
-                        inputs[count, :, :, 1] = line_img[x:x + pat_size, y:y + pat_size, 0]
+                        inputs[count, :, :, 1] = line_img[x:x + pat_size, y:y + pat_size]
 
                     count += 1
 
