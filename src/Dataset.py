@@ -67,7 +67,7 @@ class ValDataset(Dataset):
                                      f' \'{self.line_files[i]}\' has shape {line_img.shape}')
                 self.data[-1][:, :, -1] = line_img
             else:
-                self.data.append(np.zeros(shape=(*raw_data[i].shape, n_raw_channels), dtype=np.float32))
+                self.data.append(np.zeros(shape=raw_data[i].shape, dtype=np.float32))
             self.data[-1][:, :, :n_raw_channels] = raw_data[i]
 
     def __len__(self):

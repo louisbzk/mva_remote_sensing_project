@@ -239,19 +239,23 @@ class AE(torch.nn.Module):
         x = batch
 
         L = 1
-
+        # if the batch has line data, we need to separate the raw image & the line data
         if x.shape[-1] > 1:
             y1 = self.generate_speckle(x[:, :, :, :-1], L)
             y1 = torch.cat((y1, x[:, :, :, -1:]), dim=-1).to(self.device)
         else:
             y1 = self.generate_speckle(x, L).to(self.device)
 
-        gt_tensor = x[:, :, :, :-1]
         out = torch.permute(self.forward(y1), (0, 2, 3, 1))
 
-        # if the batch has line data, we need to separate the raw image & the line data
-        noisy_tensor = x[:, :, :, :-1]
-        denoised_tensor = out[:, :, :, :-1]
+        if x.shape[-1] > 1:
+            gt_tensor = x[:, :, :, :-1]
+            noisy_tensor = y1[:, :, :, :-1]
+            denoised_tensor = out[:, :, :, :-1]
+        else:
+            gt_tensor = x
+            noisy_tensor = y1
+            denoised_tensor = out
         # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
         noisyimage = denormalize_sar(np.asarray(noisy_tensor.cpu().numpy()))
