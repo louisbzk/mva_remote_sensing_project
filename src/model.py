@@ -172,6 +172,8 @@ class AE(torch.nn.Module):
 
         n = self.dec1(n)
 
+        if x.shape[-1] > 1:
+            return x[:, :-1, ...] - n
         return x - n
 
     @staticmethod
@@ -215,9 +217,9 @@ class AE(torch.nn.Module):
         y1 = y1.to(self.device)
 
         out = self.forward(y1)
-        loss = self.loss(out, x)
-
-        return loss
+        if x.shape[-1] > 1:
+            return self.loss(out, x[..., :-1])
+        return self.loss(out, x)
 
     def validation_step(self, batch, image_num, epoch_num, eval_files, eval_set):
         """ Test the model with the validation set
@@ -235,7 +237,6 @@ class AE(torch.nn.Module):
         output_clean_image : a np.array
 
         """
-
         x = batch
 
         L = 1
@@ -251,7 +252,7 @@ class AE(torch.nn.Module):
         if x.shape[-1] > 1:
             gt_tensor = x[:, :, :, :-1]
             noisy_tensor = y1[:, :, :, :-1]
-            denoised_tensor = out[:, :, :, :-1]
+            denoised_tensor = out
         else:
             gt_tensor = x
             noisy_tensor = y1
