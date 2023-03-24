@@ -5,7 +5,8 @@ from PIL import Image, ImageEnhance
 
 
 def process_line_img(img: [np.ndarray, str],
-                     presaturate=True,
+                     q_lower=1,
+                     q_upper=99,
                      contrast_alpha=4.,
                      contrast_beta=0.,
                      thresh_window=11,
@@ -27,7 +28,10 @@ def process_line_img(img: [np.ndarray, str],
      - Remove small connected features using area opening
 
     :param img: the input image as an array, or path to input image. It may be RGB or grayscale with 0-255 values.
-    :param presaturate: whether or not to perform a pre-saturation step to equalize the image using quantiles.
+    :param q_lower: float or None. If a float, will saturate values lower than the q_lower-th percentile
+     before processing
+    :param q_upper: float or None. If a float, will saturate values higher than the q_lower-th percentile
+     before processing
     :param contrast_alpha: the linear ramp used for contrasting. See cv2.convertScaleAbs for details.
     :param contrast_beta: the offset used for contrasting. See cv2.convertScaleAbs for details.
     :param thresh_window: the window size used for thresholding. See cv2.adaptiveThreshold for details.
@@ -54,11 +58,18 @@ def process_line_img(img: [np.ndarray, str],
     else:
         raise TypeError(f'Image of wrong type, expected \'np.ndarray\' or \'str\' but got {type(img)}')
 
-    if presaturate:
-        qmin, qmax = np.percentile(_img, q=[1, 99])
+    if q_lower:
+        qmin = np.percentile(_img, q=q_lower)
         _img[_img < qmin] = qmin
+    else:
+        qmin = np.min(_img)
+    if q_upper:
+        qmax = np.percentile(_img, q=q_upper)
         _img[_img > qmax] = qmax
-        _img = (255 * (_img.astype(np.float32) - qmin) / (qmax - qmin)).astype(np.uint8)
+    else:
+        qmax = np.max(_img)
+
+    _img = (255 * (_img.astype(np.float32) - qmin) / (qmax - qmin)).astype(np.uint8)
 
     # step 1 : grayscale
     if len(_img.shape) != 2:
