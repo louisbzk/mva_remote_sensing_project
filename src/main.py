@@ -174,7 +174,7 @@ def denoiser_train(model, lr_list, gn_list):
     eval_dataset = ValDataset(args.test_set, args.test_line_detection_path)  # range [0; 1]
     eval_loader = DataLoader(
         eval_dataset, batch_size=args.val_batch_size, shuffle=False, drop_last=True)
-    eval_files = glob(os.path.join(args.eval_set, '*.npy'))
+    eval_files = eval_dataset.files
 
     # Train the model
     history = fit(model, train_loader, eval_loader, args.epoch, lr_list,
