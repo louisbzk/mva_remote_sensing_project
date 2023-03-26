@@ -29,6 +29,7 @@ class GenerateDataset:
         if lines_dir:
             lines_filepaths = glob.glob(lines_dir + '/*.npy')
             _lines_filenames = [Path(fp).stem for fp in lines_filepaths]
+            _lines_idx_map = []
             # check one-to-one mapping
             if len(filepaths) != len(lines_filepaths):
                 raise ValueError(f'Wrong number of line detection images : {len(lines_filepaths)} were found, but '
@@ -39,9 +40,7 @@ class GenerateDataset:
                 except ValueError:
                     raise ValueError(f'Could not find line image that matches the following image : \'{path}\' in '
                                      f'directory \'{lines_dir}\'')
-                if i != line_idx:  # move element in list, so that indices match between the two lists
-                    line_path = lines_filepaths.pop(line_idx)
-                    lines_filepaths.insert(i, line_path)
+                _lines_idx_map.append(line_idx)
 
         print('number of training data %d' % len(filepaths))
 
@@ -80,7 +79,10 @@ class GenerateDataset:
             im_w = np.size(img, 1)
 
             if lines_dir:
-                line_img = np.load(lines_filepaths[i])
+                if Path(filepaths[i]).stem == Path(lines_filepaths[_lines_idx_map[i]]).stem:
+                    raise ValueError(f'Mismatched image and line map : \'{filepaths[i]}\' and'
+                                     f' \'{lines_filepaths[_lines_idx_map[i]]}\'')
+                line_img = np.load(lines_filepaths[_lines_idx_map[i]])
                 line_im_h, line_im_w = line_img.shape
                 if line_im_h != im_h or line_im_w != im_w:
                     raise ValueError(f'For image \'{filepaths[i]}\', corresponding line image \'{lines_filepaths[i]}\' '
