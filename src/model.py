@@ -93,7 +93,7 @@ class AE(torch.nn.Module):
         if loss == 'ms-ssim':
             return MsSSIMLoss()
         if loss == 'ms-ssim-l1':
-            return MsSSIML1Loss(alpha=0.8, k2=0.15)  # todo : maybe adjust this via args
+            return MsSSIML1Loss(alpha=0.2, k2=0.4)  # todo : maybe adjust this via args
 
     def forward(self, x):
         """  Defines a class for an autoencoder algorithm for an object (image) x
