@@ -97,6 +97,49 @@ def process_line_img(img: [np.ndarray, str],
     return np.array(_img).astype(return_dtype)
 
 
+def process_lines_soft(img: np.ndarray,
+                       q_lower=1,
+                       q_upper=99,
+                       vignette_contrast_factor=50,
+                       preferred_vignette_method=None,
+                       return_dtype=np.float32,
+                       ):
+    _min, _max = np.min(img), np.max(img)
+    if isinstance(img, np.ndarray):
+        if _min < 0. or _max > 255.:
+            raise ValueError('Input array\'s values do not range from 0 to 255.')
+        if img.dtype == np.uint8:
+            _img = img
+        elif np.isclose(_max, 1., atol=1e-1) and _max <= 1.:
+            _img = (255 * img).astype(np.uint8)
+        else:
+            raise ValueError(f'Input array\'s values are neither 0-255 or 0-1. Found min, max = {_min},  {_max}')
+
+        # step 1 : grayscale
+        if len(_img.shape) != 2:
+            _img = cv2.cvtColor(_img, cv2.COLOR_BGR2GRAY)  # RGB, BGR equivalent for grayscale anyway...
+
+        pil_img = Image.fromarray(_img, mode='L')
+        contraster = ImageEnhance.Contrast(pil_img)
+        pil_img = contraster.enhance(factor=vignette_contrast_factor)
+        vignette = compute_vignette_size(np.array(pil_img).astype(np.uint8), preferred_method=preferred_vignette_method)
+
+        _img = _apply_vignette_removal(_img, vignette)
+        if q_lower:
+            qmin = np.percentile(_img, q=q_lower)
+            _img[_img < qmin] = qmin
+        else:
+            qmin = np.min(_img)
+        if q_upper:
+            qmax = np.percentile(_img, q=q_upper)
+            _img[_img > qmax] = qmax
+        else:
+            qmax = np.max(_img)
+
+        _img = ((_img.astype(np.float32) - qmin) / (qmax - qmin)).astype(return_dtype)
+        return _img
+
+
 def compute_vignette_size(img: np.ndarray,
                           prop_px_threshold=0.4,
                           hist_neighborhood_size=4,
