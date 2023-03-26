@@ -14,7 +14,7 @@ from utils import init_weights, save_model, save_checkpoint, load_train_data
 from torch.utils.data import DataLoader
 
 # todo : change paths
-basedir = '/home/alderson/Desktop/MVA/Remote Sensing/Project'
+basedir = '/mnt/d/Remote_Sensing/'
 datasetdir = basedir + '/data'
 
 torch.manual_seed(1)

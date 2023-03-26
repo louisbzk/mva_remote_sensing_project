@@ -29,10 +29,13 @@ class GenerateDataset:
         if lines_dir:
             lines_filepaths = glob.glob(lines_dir + '/*.npy')
             _lines_filenames = [Path(fp).stem for fp in lines_filepaths]
+            print('lines_filepaths', lines_filepaths)
+            print('_lines_filenames' , _lines_filenames)
             # check one-to-one mapping
             if len(filepaths) != len(lines_filepaths):
                 raise ValueError(f'Wrong number of line detection images : {len(lines_filepaths)} were found, but '
                                  f'there are {len(filepaths)} training images')
+
             for i, path in enumerate(filepaths):
                 try:
                     line_idx = _lines_filenames.index(Path(path).stem)
@@ -40,8 +43,17 @@ class GenerateDataset:
                     raise ValueError(f'Could not find line image that matches the following image : \'{path}\' in '
                                      f'directory \'{lines_dir}\'')
                 if i != line_idx:  # move element in list, so that indices match between the two lists
-                    line_path = lines_filepaths.pop(line_idx)
-                    lines_filepaths.insert(i, line_path)
+                    line_path, other_path = lines_filepaths[line_idx], lines_filepaths[i]
+                    lines_filepaths[i] = line_path
+                    lines_filepaths[line_idx] = other_path
+                    _lines_filenames[i] = Path(line_path).stem
+                    _lines_filenames[line_idx] = Path(other_path).stem
+                    # line_path = lines_filepaths.pop(line_idx)
+                    #other_path = lines_filepaths.pop(i)
+                    #lines_filepaths.insert(i, line_path)
+                    #lines_filepaths.insert(line_idx, other_path)
+            print(filepaths)
+            print(lines_filepaths)
 
         print('number of training data %d' % len(filepaths))
 
