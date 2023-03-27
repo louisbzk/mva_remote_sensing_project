@@ -79,7 +79,7 @@ class GenerateDataset:
             im_w = np.size(img, 1)
 
             if lines_dir:
-                if Path(filepaths[i]).stem == Path(lines_filepaths[_lines_idx_map[i]]).stem:
+                if Path(filepaths[i]).stem != Path(lines_filepaths[_lines_idx_map[i]]).stem:
                     raise ValueError(f'Mismatched image and line map : \'{filepaths[i]}\' and'
                                      f' \'{lines_filepaths[_lines_idx_map[i]]}\'')
                 line_img = np.load(lines_filepaths[_lines_idx_map[i]])
