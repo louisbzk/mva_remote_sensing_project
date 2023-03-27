@@ -91,7 +91,7 @@ class AE(torch.nn.Module):
         if loss == 'l1':
             return L1Loss()
         if loss == 'ms-ssim':
-            return MsSSIMLoss()
+            return MsSSIMLoss(k2=0.4)
         if loss == 'ms-ssim-l1':
             return MsSSIML1Loss(alpha=0.2, k2=0.4)  # todo : maybe adjust this via args
 
@@ -172,7 +172,7 @@ class AE(torch.nn.Module):
 
         n = self.dec1(n)
 
-        if x.shape[-1] > 1:
+        if x.shape[1] > 1:
             return x[:, :-1, ...] - n
         return x - n
 
